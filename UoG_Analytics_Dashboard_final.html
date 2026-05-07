@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UoG Analytics — Decision Support Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg:#f4f3ef; --surface:#ffffff; --surface2:#f0efe9; --border:#e2e0d8;
+    --text:#1a1916; --text2:#6b6960; --text3:#9e9c94;
+    --accent:#1d4ed8; --accent-soft:#eff3ff;
+    --green:#16a34a; --green-soft:#f0fdf4;
+    --amber:#d97706; --amber-soft:#fffbeb;
+    --red:#dc2626; --red-soft:#fef2f2;
+    --teal:#0891b2; --teal-soft:#ecfeff;
+    --nav-w:228px; --header-h:56px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;min-height:100vh;font-size:14px;}
+
+  /* HEADER */
+  .header{height:var(--header-h);background:var(--text);display:flex;align-items:center;padding:0 24px;gap:12px;position:fixed;top:0;left:0;right:0;z-index:100;}
+  .header-logo{width:32px;height:32px;background:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--text);flex-shrink:0;}
+  .header-title{color:#fff;font-size:14px;font-weight:500;}
+  .header-sub{color:#888;font-size:12px;margin-left:4px;}
+  .header-right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+  .header-badge{background:rgba(255,255,255,0.1);color:#ccc;font-size:11px;padding:3px 10px;border-radius:20px;font-family:'DM Mono',monospace;}
+  .header-avatar{width:30px;height:30px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;}
+
+  /* LAYOUT */
+  .layout{display:flex;margin-top:var(--header-h);min-height:calc(100vh - var(--header-h));}
+
+  /* SIDEBAR */
+  .sidebar{width:var(--nav-w);background:var(--surface);border-right:1px solid var(--border);position:fixed;top:var(--header-h);left:0;bottom:0;overflow-y:auto;display:flex;flex-direction:column;padding:20px 0;}
+  .sidebar-section{padding:0 12px;margin-bottom:20px;}
+  .sidebar-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);padding:0 8px;margin-bottom:6px;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text2);transition:all .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;}
+  .nav-item:hover{background:var(--surface2);color:var(--text);}
+  .nav-item.active{background:var(--accent-soft);color:var(--accent);font-weight:500;}
+  .nav-icon{width:18px;height:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+  .sidebar-footer{margin-top:auto;padding:16px 12px;border-top:1px solid var(--border);}
+  .data-badge{background:var(--green-soft);color:var(--green);font-size:11px;padding:6px 10px;border-radius:6px;display:flex;align-items:center;gap:6px;}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;}
+
+  /* MAIN */
+  .main{margin-left:var(--nav-w);flex:1;padding:28px 32px;min-width:0;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  /* PAGE HEADER */
+  .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;}
+  .page-title{font-size:22px;font-weight:600;letter-spacing:-.5px;}
+  .page-sub{font-size:13px;color:var(--text2);margin-top:2px;}
+  .filter-row{display:flex;gap:8px;align-items:center;}
+  select{font-family:'DM Sans',sans-serif;font-size:12px;padding:7px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;outline:none;}
+  select:focus{border-color:var(--accent);}
+
+  /* METRICS */
+  .metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+  .metric-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+  .metric-label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px;}
+  .metric-value{font-size:28px;font-weight:600;letter-spacing:-1px;line-height:1;}
+  .metric-delta{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:500;margin-top:6px;padding:2px 7px;border-radius:20px;}
+  .delta-up{background:var(--green-soft);color:var(--green);}
+  .delta-down{background:var(--red-soft);color:var(--red);}
+  .delta-flat{background:var(--surface2);color:var(--text2);}
+
+  /* CHARTS */
+  .chart-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  .chart-grid-3{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}
+  .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;}
+  .card-title{font-size:13px;font-weight:600;margin-bottom:4px;}
+  .card-sub{font-size:11px;color:var(--text3);margin-bottom:16px;}
+  .chart-wrap{position:relative;}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;}
+  .legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);}
+  .legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+
+  /* TABLE */
+  .data-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .data-table th{text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);padding:8px 12px;border-bottom:1px solid var(--border);}
+  .data-table td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text2);}
+  .data-table tr:last-child td{border-bottom:none;}
+  .data-table tr:hover td{background:var(--surface2);}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;}
+  .pill-green{background:var(--green-soft);color:var(--green);}
+  .pill-amber{background:var(--amber-soft);color:var(--amber);}
+  .pill-red{background:var(--red-soft);color:var(--red);}
+
+  /* PROGRESS */
+  .prog-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;}
+  .prog-fill{height:100%;border-radius:3px;}
+
+  /* ALERTS */
+  .alert-list{display:flex;flex-direction:column;gap:8px;}
+  .alert-item{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:8px;border-left:3px solid;}
+  .alert-item.red{background:var(--red-soft);border-color:var(--red);}
+  .alert-item.amber{background:var(--amber-soft);border-color:var(--amber);}
+  .alert-item.green{background:var(--green-soft);border-color:var(--green);}
+  .alert-title{font-size:12px;font-weight:600;}
+  .alert-body{font-size:11px;color:var(--text2);margin-top:2px;}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-logo">UoG</div>
+  <span class="header-title">Analytics Portal</span>
+  <span class="header-sub">— Decision Support System</span>
+  <div class="header-right">
+    <span class="header-badge" id="activeBadge">AY 2024–25</span>
+    <div class="header-avatar">SB</div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Overview</div>
+      <button class="nav-item active" onclick="showPanel('enrolment',this)">
+        <span class="nav-icon"><svg width="16" height="16" fill="none" stroke="#6b6960" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+        Enrolment Overview
+      </button>
+      <button class="nav-item" onclick="showPanel('retention',this)">
+        <span class="nav-icon"><svg width="16" height="16" fill="none" stroke="#6b6960" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+        Retention & Progression
+      </button>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Performance</div>
+      <button class="nav-item" onclick="showPanel('performance',this)">
+        <span class="nav-icon"><svg width="16" height="16" fill="none" stroke="#6b6960" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        Academic Performance
+      </button>
+      <button class="nav-item" onclick="showPanel('resource',this)">
+        <span class="nav-icon"><svg width="16" height="16" fill="none" stroke="#6b6960" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+        Resource & Admin
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      <div class="data-badge"><div class="dot"></div>Synthetic dataset · 500 students</div>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- ═══════════════════════════════════
+         PANEL 1 — ENROLMENT OVERVIEW
+    ═══════════════════════════════════ -->
+    <div class="panel active" id="panel-enrolment">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Enrolment Overview</div>
+          <div class="page-sub">Programme-level trends — University of Galway</div>
+        </div>
+        <div class="filter-row">
+          <select id="enrolProg" onchange="updateEnrolment()">
+            <option value="all">All Programmes</option>
+            <option value="ism">MSc ISM</option>
+            <option value="cda">MSc CS (Data Analytics)</option>
+            <option value="bme">MSc Biomedical Engineering</option>
+            <option value="mpp">MSc Public Policy</option>
+          </select>
+          <select id="enrolYear" onchange="updateEnrolment()">
+            <option value="4yr">2021–25 (4 yr)</option>
+            <option value="3yr">2022–25 (3 yr)</option>
+            <option value="2yr">2023–25 (2 yr)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="metrics-grid" id="enrolMetrics">
+        <div class="metric-card"><div class="metric-label">Total Enrolled</div><div class="metric-value" id="mTotal">2,614</div><div class="metric-delta delta-up">↑ 4.8% vs last year</div></div>
+        <div class="metric-card"><div class="metric-label">New Entrants</div><div class="metric-value" id="mNew">668</div><div class="metric-delta delta-up">↑ 5.5% vs last year</div></div>
+        <div class="metric-card"><div class="metric-label">Capacity Utilisation</div><div class="metric-value" id="mCap">86%</div><div class="metric-delta delta-flat">— same as last year</div></div>
+        <div class="metric-card"><div class="metric-label">International Students</div><div class="metric-value" id="mIntl">34%</div><div class="metric-delta delta-up">↑ 3.1pp vs last year</div></div>
+      </div>
+
+      <div class="chart-grid-3">
+        <div class="chart-card">
+          <div class="card-title">Enrolment by programme</div>
+          <div class="card-sub" id="enrolChartSub">Head count per academic year (2021–2025)</div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#1d4ed8"></div>MSc ISM</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#0891b2"></div>MSc CS (Data Analytics)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>MSc Biomedical Eng.</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div>MSc Public Policy</div>
+          </div>
+          <div class="chart-wrap"><canvas id="c1" height="220"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="card-title">Programme split</div>
+          <div class="card-sub" id="donutSub">Academic year 2024–25</div>
+          <div class="chart-wrap"><canvas id="c2" height="220"></canvas></div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="card-title">Year-on-year enrolment change by programme (%)</div>
+        <div class="card-sub" id="yoySubLabel">Percentage change from prior academic year</div>
+        <div class="chart-wrap"><canvas id="c3" height="130"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════
+         PANEL 2 — RETENTION & PROGRESSION
+    ═══════════════════════════════════ -->
+    <div class="panel" id="panel-retention">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Retention & Progression</div>
+          <div class="page-sub">Cohort survival curves and early warning flags</div>
+        </div>
+        <div class="filter-row">
+          <select id="retProg" onchange="updateRetention()">
+            <option value="all">All Programmes</option>
+            <option value="ism">MSc ISM</option>
+            <option value="cda">MSc CS (Data Analytics)</option>
+            <option value="bme">MSc Biomedical Eng.</option>
+          </select>
+          <select id="retIntake" onchange="updateRetention()">
+            <option value="2021">Intake 2021</option>
+            <option value="2022">Intake 2022</option>
+            <option value="2023">Intake 2023</option>
+            <option value="2024" selected>Intake 2024</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="metric-label">Overall Retention</div><div class="metric-value" id="retMetric1" style="color:var(--green)">88.6%</div><div class="metric-delta delta-up" id="retDelta1">↑ 1.4pp vs cohort avg</div></div>
+        <div class="metric-card"><div class="metric-label">On-Time Progression</div><div class="metric-value" id="retMetric2">80.1%</div><div class="metric-delta delta-flat" id="retDelta2">— 0.2pp vs cohort avg</div></div>
+        <div class="metric-card"><div class="metric-label">At-Risk Students</div><div class="metric-value" id="retMetric3" style="color:var(--red)">34</div><div class="metric-delta delta-down" id="retDelta3">↑ 4 since last semester</div></div>
+        <div class="metric-card"><div class="metric-label">Withdrawals (YTD)</div><div class="metric-value" id="retMetric4">41</div><div class="metric-delta delta-down" id="retDelta4">↑ 2 vs same period</div></div>
+      </div>
+
+      <div class="chart-grid-2">
+        <div class="chart-card">
+          <div class="card-title">Cohort retention curves by programme</div>
+          <div class="card-sub" id="retCurveSub">% of intake remaining at each semester checkpoint</div>
+          <div class="legend" id="retLegend">
+            <div class="legend-item"><div class="legend-dot" style="background:#1d4ed8"></div>MSc ISM</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#0891b2"></div>MSc CS (Data Analytics)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>MSc Biomedical Eng.</div>
+          </div>
+          <div class="chart-wrap"><canvas id="c4" height="220"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="card-title" id="withdrawTitle">Withdrawal reasons — intake 2024</div>
+          <div class="card-sub">Categorised from exit survey data</div>
+          <div class="chart-wrap"><canvas id="c5" height="220"></canvas></div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="card-title" id="ewTitle">Early warning flags — current cohort (AY 2024–25)</div>
+        <div class="card-sub">Students with 2+ risk indicators: attendance, grades, engagement</div>
+        <div class="alert-list" id="ewAlerts" style="margin-top:8px">
+          <div class="alert-item red"><div><div class="alert-title">13 students — MSc ISM — below 40% pass mark in 2+ modules (MS806, MS805)</div><div class="alert-body">Persistent underperformance in Business Applications Programming and Database Systems. Recommend academic support referral via J.E. Cairnes Student Support Officer.</div></div></div>
+          <div class="alert-item amber"><div><div class="alert-title">11 students — MSc CS (Data Analytics) — attendance below 60% threshold</div><div class="alert-body">Attendance flag triggered for 2 consecutive weeks. Monitor for withdrawal risk; programme coordinator notified.</div></div></div>
+          <div class="alert-item amber"><div><div class="alert-title">10 students — MSc Biomedical Eng. — late submission pattern detected (3+ consecutive)</div><div class="alert-body">Late submission flag active. Pastoral check-in recommended before Semester 2 exams.</div></div></div>
+          <div class="alert-item green"><div><div class="alert-title">MSc Public Policy cohort — retention above 96% — no active risk flags</div><div class="alert-body">Performing above university programme average across all monitored indicators this semester.</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════
+         PANEL 3 — ACADEMIC PERFORMANCE
+    ═══════════════════════════════════ -->
+    <div class="panel" id="panel-performance">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Academic Performance</div>
+          <div class="page-sub">Grade distributions, pass rates, and module-level analysis</div>
+        </div>
+        <div class="filter-row">
+          <select id="perfProg" onchange="updatePerformance()">
+            <option value="ism">MSc ISM</option>
+            <option value="cda">MSc CS (Data Analytics)</option>
+            <option value="bme">MSc Biomedical Eng.</option>
+            <option value="mpp">MSc Public Policy</option>
+          </select>
+          <select id="perfSem" onchange="updatePerformance()">
+            <option value="s1">Sem 1 2024–25</option>
+            <option value="s2">Sem 2 2024–25</option>
+            <option value="ay">Full AY 2023–24</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="metric-label">Overall Pass Rate</div><div class="metric-value" id="pPass" style="color:var(--green)">84.2%</div><div class="metric-delta delta-up">↑ 2.3pp vs prior semester</div></div>
+        <div class="metric-card"><div class="metric-label">Average Grade</div><div class="metric-value" id="pAvg">62.1</div><div class="metric-delta delta-flat">— 0.6pp vs prior semester</div></div>
+        <div class="metric-card"><div class="metric-label">First Class Honours</div><div class="metric-value" id="pFirst">17.8%</div><div class="metric-delta delta-up">↑ 1.2pp vs prior semester</div></div>
+        <div class="metric-card"><div class="metric-label">Failure Rate</div><div class="metric-value" id="pFail" style="color:var(--amber)">15.8%</div><div class="metric-delta delta-down">↓ 2.3pp vs prior semester</div></div>
+      </div>
+
+      <div class="chart-grid-2">
+        <div class="chart-card">
+          <div class="card-title" id="gradeDistTitle">Grade distribution — MSc ISM, Sem 1 2024–25</div>
+          <div class="card-sub">Percentage of students per grade band</div>
+          <div class="chart-wrap"><canvas id="c6" height="220"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="card-title" id="passRateTitle">Module pass rates — MSc ISM</div>
+          <div class="card-sub">Current semester vs 3-year average</div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#1d4ed8"></div>Current sem</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#e2e0d8"></div>3-yr average</div>
+          </div>
+          <div class="chart-wrap"><canvas id="c7" height="220"></canvas></div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="card-title" id="leagueTitle">Module performance — MSc ISM, Sem 1 2024–25</div>
+        <div class="card-sub">Ranked by pass rate; real module codes from UoG MSc ISM programme</div>
+        <table class="data-table" id="moduleTable" style="margin-top:4px">
+          <thead><tr><th>Code</th><th>Module Name</th><th>ECTS</th><th>Avg Grade</th><th>Pass Rate</th><th>Fail Rate</th><th>Trend</th><th>Status</th></tr></thead>
+          <tbody id="moduleTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════
+         PANEL 4 — RESOURCE & ADMIN
+    ═══════════════════════════════════ -->
+    <div class="panel" id="panel-resource">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Resource & Admin</div>
+          <div class="page-sub">Staffing, room utilisation, and operational metrics — University of Galway</div>
+        </div>
+        <div class="filter-row">
+          <select id="resCollege" onchange="updateResource()">
+            <option value="all">All Colleges</option>
+            <option value="bpl">College of Business, Public Policy & Law</option>
+            <option value="cse">College of Science & Engineering</option>
+            <option value="mnh">College of Medicine, Nursing & Health Sciences</option>
+            <option value="asc">College of Arts, Social Sciences & Celtic Studies</option>
+          </select>
+          <select id="resSem" onchange="updateResource()">
+            <option value="s1">Semester 1</option>
+            <option value="s2">Semester 2</option>
+            <option value="fy">Full Year</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="metric-label">Teaching Hrs Delivered</div><div class="metric-value" id="resMetric1">4,640</div><div class="metric-delta delta-flat" id="resDelta1">98.1% of scheduled</div></div>
+        <div class="metric-card"><div class="metric-label">Room Utilisation</div><div class="metric-value" id="resMetric2">74%</div><div class="metric-delta delta-up" id="resDelta2">↑ 2pp vs same sem</div></div>
+        <div class="metric-card"><div class="metric-label">Staff : Student Ratio</div><div class="metric-value" id="resMetric3">1:19</div><div class="metric-delta delta-flat" id="resDelta3">— target is 1:20</div></div>
+        <div class="metric-card"><div class="metric-label">Support Ticket Resolution</div><div class="metric-value" id="resMetric4">92%</div><div class="metric-delta delta-up" id="resDelta4">↑ within 48-hr SLA</div></div>
+      </div>
+
+      <div class="chart-grid-2">
+        <div class="chart-card">
+          <div class="card-title">Room utilisation by building — peak teaching hours</div>
+          <div class="card-sub">% of scheduled sessions where room occupancy exceeded 70%</div>
+          <div class="chart-wrap"><canvas id="c8" height="220"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="card-title">Staff workload distribution</div>
+          <div class="card-sub">Teaching hours per academic staff member (anonymised)</div>
+          <div class="chart-wrap"><canvas id="c9" height="220"></canvas></div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="card-title">College resource allocation summary — University of Galway</div>
+        <div class="card-sub">Budget utilisation, headcount, and room usage by official UoG college</div>
+        <table class="data-table" style="margin-top:4px">
+          <thead>
+            <tr>
+              <th style="width:30%">College</th>
+              <th>Staff (FTE)</th>
+              <th>Students</th>
+              <th>S:S Ratio</th>
+              <th style="width:16%">Room Util.</th>
+              <th>Budget Used</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="resTableBody">
+            <tr>
+              <td style="color:var(--text);font-weight:500">J.E. Cairnes School of Business &amp; Economics</td>
+              <td>48</td><td>1,186</td><td>1:25</td>
+              <td><span style="display:flex;align-items:center;gap:6px"><div class="prog-bar" style="width:70px"><div class="prog-fill" style="width:72%;background:var(--amber)"></div></div>72%</span></td>
+              <td>66%</td>
+              <td><span class="pill pill-amber">Monitor</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text);font-weight:500">College of Science &amp; Engineering</td>
+              <td>124</td><td>2,341</td><td>1:19</td>
+              <td><span style="display:flex;align-items:center;gap:6px"><div class="prog-bar" style="width:70px"><div class="prog-fill" style="width:80%;background:var(--green)"></div></div>80%</span></td>
+              <td>73%</td>
+              <td><span class="pill pill-green">On track</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text);font-weight:500">College of Medicine, Nursing &amp; Health Sciences</td>
+              <td>98</td><td>1,874</td><td>1:19</td>
+              <td><span style="display:flex;align-items:center;gap:6px"><div class="prog-bar" style="width:70px"><div class="prog-fill" style="width:77%;background:var(--green)"></div></div>77%</span></td>
+              <td>71%</td>
+              <td><span class="pill pill-green">On track</span></td>
+            </tr>
+            <tr>
+              <td style="color:var(--text);font-weight:500">College of Arts, Social Sciences &amp; Celtic Studies</td>
+              <td>86</td><td>1,614</td><td>1:19</td>
+              <td><span style="display:flex;align-items:center;gap:6px"><div class="prog-bar" style="width:70px"><div class="prog-fill" style="width:61%;background:var(--red)"></div></div>61%</span></td>
+              <td>54%</td>
+              <td><span class="pill pill-red">Underused</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ─── Data ─────────────────────────────────────────────── */
+const YEARS_4 = ['2021–22','2022–23','2023–24','2024–25'];
+const YEARS_3 = ['2022–23','2023–24','2024–25'];
+const YEARS_2 = ['2023–24','2024–25'];
+
+// Enrolment head-counts per programme per year [2021-22 … 2024-25]
+// UoG-realistic: MSc ISM ~100-120, MSc CS Data Analytics ~60-80, Biomedical Eng ~50-70, Public Policy ~30-45
+const ENROL_DATA = {
+  ism: [102, 112, 118, 126],
+  cda: [58,  66,  72,  81],
+  bme: [48,  54,  60,  67],
+  mpp: [32,  36,  39,  44],
+};
+
+// YoY % change [2022→2023, 2023→2024, 2024→2025]
+const YOY = {
+  ism: [9.8, 5.4, 6.8],
+  cda: [13.8, 9.1, 12.5],
+  bme: [12.5, 11.1, 11.7],
+  mpp: [12.5, 8.3, 12.8],
+};
+
+// Module data per programme
+const MODULES = {
+  ism: {
+    s1: [
+      {code:'MS5132',name:'Major ISM Project',ects:30,avg:66.8,pass:91,fail:9,trend:'↑',status:'On track'},
+      {code:'MS804', name:'Systems Dev. & Project Mgmt',ects:5,avg:64.2,pass:88,fail:12,trend:'↑',status:'On track'},
+      {code:'MS807', name:'Information Systems Management',ects:5,avg:62.5,pass:86,fail:14,trend:'→',status:'On track'},
+      {code:'MS820', name:'Interactive Systems Design',ects:5,avg:61.8,pass:84,fail:16,trend:'↑',status:'On track'},
+      {code:'MS5107',name:'Business Modelling & Analytics',ects:5,avg:60.1,pass:82,fail:18,trend:'→',status:'Monitor'},
+      {code:'MS805', name:'Database Systems',ects:5,avg:57.4,pass:76,fail:24,trend:'↓',status:'Monitor'},
+      {code:'MS806', name:'Business Applications Programming',ects:5,avg:53.2,pass:71,fail:29,trend:'↓',status:'Review needed'},
+    ],
+    s2: [
+      {code:'MS5132',name:'Major ISM Project',ects:30,avg:68.1,pass:93,fail:7,trend:'↑',status:'On track'},
+      {code:'MS801', name:'Web Design & Development',ects:5,avg:65.3,pass:89,fail:11,trend:'↑',status:'On track'},
+      {code:'MS821', name:'Applied Systems Analysis',ects:5,avg:63.0,pass:85,fail:15,trend:'→',status:'On track'},
+      {code:'MS809', name:'Enterprise Systems',ects:5,avg:61.2,pass:83,fail:17,trend:'↑',status:'On track'},
+      {code:'MS5118',name:'Cloud Computing',ects:5,avg:60.4,pass:80,fail:20,trend:'→',status:'Monitor'},
+      {code:'MS803', name:'Business Data Communications',ects:5,avg:58.8,pass:78,fail:22,trend:'↓',status:'Monitor'},
+      {code:'MS5114',name:'Adv. Programming for Business Analytics',ects:5,avg:55.1,pass:72,fail:28,trend:'↓',status:'Review needed'},
+    ],
+    ay: [
+      {code:'MS5132',name:'Major ISM Project',ects:30,avg:67.4,pass:92,fail:8,trend:'↑',status:'On track'},
+      {code:'MS801', name:'Web Design & Development',ects:5,avg:63.8,pass:87,fail:13,trend:'↑',status:'On track'},
+      {code:'MS804', name:'Systems Dev. & Project Mgmt',ects:5,avg:62.1,pass:85,fail:15,trend:'→',status:'On track'},
+      {code:'MS821', name:'Applied Systems Analysis',ects:5,avg:60.7,pass:83,fail:17,trend:'→',status:'On track'},
+      {code:'MS807', name:'Information Systems Management',ects:5,avg:60.0,pass:81,fail:19,trend:'→',status:'Monitor'},
+      {code:'MS805', name:'Database Systems',ects:5,avg:56.9,pass:75,fail:25,trend:'↓',status:'Monitor'},
+      {code:'MS806', name:'Business Applications Programming',ects:5,avg:52.8,pass:69,fail:31,trend:'↓',status:'Review needed'},
+    ],
+  },
+  cda: {
+    s1: [
+      {code:'CS6001',name:'Large-Scale Data Analytics',ects:10,avg:65.4,pass:89,fail:11,trend:'↑',status:'On track'},
+      {code:'CS6010',name:'Machine Learning',ects:10,avg:62.8,pass:86,fail:14,trend:'→',status:'On track'},
+      {code:'CS6015',name:'Information Retrieval',ects:5,avg:61.0,pass:83,fail:17,trend:'↑',status:'On track'},
+      {code:'CS6016',name:'Natural Language Processing',ects:5,avg:58.5,pass:78,fail:22,trend:'↓',status:'Monitor'},
+      {code:'CS6020',name:'Deep Learning',ects:5,avg:55.2,pass:73,fail:27,trend:'↓',status:'Monitor'},
+    ],
+    s2: [
+      {code:'CS6025',name:'Data Visualisation',ects:5,avg:66.1,pass:90,fail:10,trend:'↑',status:'On track'},
+      {code:'CS6030',name:'Web Mining & Linked Data',ects:5,avg:63.4,pass:86,fail:14,trend:'→',status:'On track'},
+      {code:'CS6035',name:'Simulation & Modelling',ects:5,avg:60.8,pass:82,fail:18,trend:'→',status:'On track'},
+      {code:'CS6040',name:'Research Thesis (Data Analytics)',ects:30,avg:57.9,pass:76,fail:24,trend:'↓',status:'Monitor'},
+    ],
+    ay: [
+      {code:'CS6001',name:'Large-Scale Data Analytics',ects:10,avg:64.8,pass:88,fail:12,trend:'→',status:'On track'},
+      {code:'CS6010',name:'Machine Learning',ects:10,avg:62.0,pass:85,fail:15,trend:'→',status:'On track'},
+      {code:'CS6025',name:'Data Visualisation',ects:5,avg:65.5,pass:89,fail:11,trend:'↑',status:'On track'},
+      {code:'CS6015',name:'Information Retrieval',ects:5,avg:60.2,pass:81,fail:19,trend:'→',status:'Monitor'},
+      {code:'CS6040',name:'Research Thesis (Data Analytics)',ects:30,avg:56.8,pass:74,fail:26,trend:'↓',status:'Monitor'},
+    ],
+  },
+  bme: {
+    s1: [
+      {code:'BME501',name:'Biomedical Instrumentation',ects:10,avg:64.1,pass:87,fail:13,trend:'↑',status:'On track'},
+      {code:'BME502',name:'Medical Imaging Systems',ects:10,avg:61.8,pass:84,fail:16,trend:'→',status:'On track'},
+      {code:'BME503',name:'Biomaterials & Implants',ects:5,avg:60.2,pass:81,fail:19,trend:'→',status:'On track'},
+      {code:'BME510',name:'Research Project (Biomedical)',ects:30,avg:56.5,pass:76,fail:24,trend:'↓',status:'Monitor'},
+    ],
+    s2: [
+      {code:'BME521',name:'Clinical Engineering',ects:10,avg:63.5,pass:86,fail:14,trend:'↑',status:'On track'},
+      {code:'BME522',name:'Tissue Engineering',ects:5,avg:60.0,pass:82,fail:18,trend:'→',status:'On track'},
+      {code:'BME523',name:'Health Informatics',ects:5,avg:57.4,pass:77,fail:23,trend:'↓',status:'Monitor'},
+      {code:'BME510',name:'Research Project (Biomedical)',ects:30,avg:62.1,pass:84,fail:16,trend:'↑',status:'On track'},
+    ],
+    ay: [
+      {code:'BME501',name:'Biomedical Instrumentation',ects:10,avg:63.4,pass:86,fail:14,trend:'→',status:'On track'},
+      {code:'BME502',name:'Medical Imaging Systems',ects:10,avg:61.0,pass:83,fail:17,trend:'→',status:'On track'},
+      {code:'BME510',name:'Research Project (Biomedical)',ects:30,avg:59.8,pass:80,fail:20,trend:'→',status:'On track'},
+      {code:'BME523',name:'Health Informatics',ects:5,avg:56.8,pass:75,fail:25,trend:'↓',status:'Monitor'},
+    ],
+  },
+  mpp: {
+    s1: [
+      {code:'PP601', name:'Public Policy Analysis',ects:10,avg:67.3,pass:93,fail:7,trend:'↑',status:'On track'},
+      {code:'PP602', name:'Governance & Accountability',ects:5,avg:65.1,pass:90,fail:10,trend:'↑',status:'On track'},
+      {code:'PP610', name:'Evidence-Based Policy Making',ects:5,avg:63.8,pass:88,fail:12,trend:'→',status:'On track'},
+      {code:'PP620', name:'Policy Research Methods',ects:10,avg:61.5,pass:85,fail:15,trend:'→',status:'On track'},
+    ],
+    s2: [
+      {code:'PP630', name:'Digital Government & e-Services',ects:5,avg:64.9,pass:89,fail:11,trend:'↑',status:'On track'},
+      {code:'PP640', name:'Comparative Public Policy',ects:5,avg:62.4,pass:86,fail:14,trend:'→',status:'On track'},
+      {code:'PP650', name:'Policy Dissertation',ects:30,avg:64.8,pass:88,fail:12,trend:'↑',status:'On track'},
+    ],
+    ay: [
+      {code:'PP601', name:'Public Policy Analysis',ects:10,avg:66.8,pass:92,fail:8,trend:'↑',status:'On track'},
+      {code:'PP650', name:'Policy Dissertation',ects:30,avg:64.2,pass:88,fail:12,trend:'→',status:'On track'},
+      {code:'PP620', name:'Policy Research Methods',ects:10,avg:61.8,pass:85,fail:15,trend:'→',status:'On track'},
+      {code:'PP610', name:'Evidence-Based Policy Making',ects:5,avg:60.5,pass:84,fail:16,trend:'→',status:'Monitor'},
+    ],
+  },
+};
+
+const PERF_METRICS = {
+  ism:  {pass:'84.2%',avg:'62.1',first:'17.8%',fail:'15.8%'},
+  cda:  {pass:'81.6%',avg:'61.4',first:'15.3%',fail:'18.4%'},
+  bme:  {pass:'82.9%',avg:'61.8',first:'16.1%',fail:'17.1%'},
+  mpp:  {pass:'88.5%',avg:'64.2',first:'21.4%',fail:'11.5%'},
+};
+
+const PROG_NAMES = {
+  ism:'MSc ISM', cda:'MSc CS (Data Analytics)', bme:'MSc Biomedical Eng.', mpp:'MSc Public Policy'
+};
+
+/* ─── Chart instances ───────────────────────────────────── */
+let charts = {};
+const font = "'DM Sans', sans-serif";
+const gridColor = '#f0efe9';
+const tickColor = '#9e9c94';
+
+function mkChart(id, type, data, opts) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), {
+    type, data,
+    options: { responsive:true, maintainAspectRatio:false, font:{family:font}, ...opts }
+  });
+}
+
+const axisBase = {
+  x:{grid:{color:gridColor},ticks:{font:{family:font,size:11},color:tickColor}},
+  y:{grid:{color:gridColor},ticks:{font:{family:font,size:11},color:tickColor}}
+};
+const noLegend = {plugins:{legend:{display:false}}};
+
+/* ─── Panel switching ───────────────────────────────────── */
+function showPanel(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ─── ENROLMENT: build charts ───────────────────────────── */
+function getYears(range) {
+  if (range==='3yr') return {labels:YEARS_3, slice:[1,4]};
+  if (range==='2yr') return {labels:YEARS_2, slice:[2,4]};
+  return {labels:YEARS_4, slice:[0,4]};
+}
+
+function updateEnrolment() {
+  const prog = document.getElementById('enrolProg').value;
+  const range = document.getElementById('enrolYear').value;
+  const {labels, slice} = getYears(range);
+
+  // Update badge in header
+  document.getElementById('activeBadge').textContent =
+    range==='4yr' ? 'AY 2024–25' : range==='3yr' ? 'AY 2023–25' : 'AY 2023–25';
+
+  document.getElementById('enrolChartSub').textContent =
+    `Head count per academic year (${labels[0]} – ${labels[labels.length-1]})`;
+
+  const progs = prog==='all' ? ['ism','cda','bme','mpp'] : [prog];
+  const colors = {ism:'#1d4ed8',cda:'#0891b2',bme:'#16a34a',mpp:'#d97706'};
+
+  // Line chart
+  const datasets = progs.map(p => ({
+    label: PROG_NAMES[p],
+    data: ENROL_DATA[p].slice(...slice),
+    borderColor: colors[p],
+    backgroundColor: colors[p]+'10',
+    tension: 0.4, pointRadius: 4, fill: true,
+  }));
+  mkChart('c1','line',{labels, datasets},{
+    plugins:{legend:{display:false}},
+    scales: {
+      x:{grid:{color:gridColor},ticks:{font:{family:font,size:11},color:tickColor}},
+      y:{grid:{color:gridColor},ticks:{font:{family:font,size:11},color:tickColor},beginAtZero:false}
+    }
+  });
+
+  // Donut — always shows latest year split
+  const latest = progs.map(p => ENROL_DATA[p][3]);
+  const donutLabels = progs.map(p => PROG_NAMES[p]);
+  const donutColors = progs.map(p => colors[p]);
+  const total = latest.reduce((a,b)=>a+b,0);
+  mkChart('c2','doughnut',{
+    labels: donutLabels,
+    datasets:[{data:latest,backgroundColor:donutColors,borderWidth:0,hoverOffset:6}]
+  },{
+    plugins:{legend:{position:'bottom',labels:{font:{family:font,size:11},color:'#6b6960',padding:10,boxWidth:10}}}
+  });
+
+  // Update metrics
+  document.getElementById('mTotal').textContent = total.toLocaleString();
+  document.getElementById('mNew').textContent = Math.round(total*0.256).toLocaleString();
+  document.getElementById('donutSub').textContent = `AY 2024–25 (${labels[labels.length-1]})`;
+
+  // YoY bar — based on selected range
+  const yoySlice = range==='4yr'?[0,3] : range==='3yr'?[1,3] : [2,3];
+  const yoyYears = ['2022→23','2023→24','2024→25'].slice(...yoySlice);
+  const yoyDatasets = progs.map((p,i) => ({
+    label: PROG_NAMES[p],
+    data: YOY[p].slice(...yoySlice),
+    backgroundColor: colors[p],
+    borderRadius: 3,
+  }));
+  document.getElementById('yoySubLabel').textContent =
+    `Percentage change from prior academic year (${yoyYears[0]} to ${yoyYears[yoyYears.length-1]})`;
+  mkChart('c3','bar',{labels:[...new Set(progs.map(p=>PROG_NAMES[p]))], datasets:yoyDatasets.length?
+    // group bars by programme, one group per year range
+    progs.map(p=>({
+      label:PROG_NAMES[p],
+      data:[...YOY[p].slice(...yoySlice)],
+      backgroundColor:colors[p],
+      borderRadius:3
+    })) : []
+  },{
+    scales:{
+      x:{grid:{display:false},ticks:{font:{family:font,size:11},color:tickColor}},
+      y:{grid:{color:gridColor},ticks:{font:{family:font,size:11},color:tickColor},
+         title:{display:true,text:'% Change',font:{family:font,size:10},color:tickColor}}
+    },
+    plugins:{legend:{display:progs.length>1,labels:{font:{family:font,size:11},color:'#6b6960',boxWidth:10}}}
+  });
+}
+
+/* ─── PERFORMANCE: build charts ─────────────────────────── */
+function updatePerformance() {
+  const prog = document.getElementById('perfProg').value;
+  const sem  = document.getElementById('perfSem').value;
+  const mods = MODULES[prog][sem];
+  const m    = PERF_METRICS[prog];
+  const pname= PROG_NAMES[prog];
+  const semLabel = sem==='s1'?'Sem 1 2024–25' : sem==='s2'?'Sem 2 2024–25' : 'Full AY 2023–24';
+
+  // Metrics
+  document.getElementById('pPass').textContent  = m.pass;
+  document.getElementById('pAvg').textContent   = m.avg;
+  document.getElementById('pFirst').textContent = m.first;
+  document.getElementById('pFail').textContent  = m.fail;
+  document.getElementById('gradeDistTitle').textContent = `Grade distribution — ${pname}, ${semLabel}`;
+  document.getElementById('passRateTitle').textContent  = `Module pass rates — ${pname}`;
+  document.getElementById('leagueTitle').textContent    = `Module performance — ${pname}, ${semLabel}`;
+
+  // Grade dist bar
+  const gBands = ['<40\n(Fail)','40–49\n(Pass)','50–59\n(2.2)','60–69\n(2.1)','70–84\n(1H)','85–100\n(Dist)'];
+  const gVals  = [parseFloat(m.fail),12.4,21.8,31.1,11.2+Math.random()*4|0,2.8+Math.random()*2|0];
+  const gColors=['#dc2626','#d97706','#9e9c94','#8ab0f0','#1d4ed8','#1e3a8a'];
+  mkChart('c6','bar',{
+    labels:gBands,
+    datasets:[{data:gVals,backgroundColor:gColors,borderRadius:4}]
+  },{
+    ...noLegend,
+    scales:{
+      x:{grid:{display:false},ticks:{font:{family:font,size:10},color:tickColor}},
+      y:{grid:{color:gridColor},ticks:{font:{family:font,size:11},color:tickColor,callback:v=>v+'%'},
+         beginAtZero:true,max:40}
+    }
+  });
+
+  // Pass rate grouped bar
+  const modLabels = mods.slice(0,6).map(m=>m.code);
+  const currPR    = mods.slice(0,6).map(m=>m.pass);
+  const avg3PR    = mods.slice(0,6).map(m=>Math.min(99,m.pass + (Math.random()>0.5?3:-2)));
+  mkChart('c7','bar',{
+    labels:modLabels,
+    datasets:[
+      {label:'Current',data:currPR,backgroundColor:'#1d4ed8',borderRadius:3},
+      {label:'3-yr avg',data:avg3PR,backgroundColor:'#e2e0d8',borderRadius:3},
+    ]
+  },{
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:{display:false},ticks:{font:{family:font,size:10},color:tickColor}},
+      y:{min:50,max:100,grid:{color:gridColor},
+         ticks:{callback:v=>v+'%',font:{family:font,size:11},color:tickColor}}
+    }
+  });
+
+  // League table
+  const tbody = document.getElementById('moduleTableBody');
+  tbody.innerHTML = '';
+  mods.forEach(r => {
+    const statusClass = r.status==='On track'?'pill-green':r.status==='Monitor'?'pill-amber':'pill-red';
+    tbody.innerHTML += `<tr>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--accent)">${r.code}</td>
+      <td style="color:var(--text)">${r.name}</td>
+      <td style="text-align:center">${r.ects}</td>
+      <td style="text-align:center">${r.avg}</td>
+      <td style="text-align:center;font-weight:500;color:var(--green)">${r.pass}%</td>
+      <td style="text-align:center;font-weight:500;color:var(--red)">${r.fail}%</td>
+      <td style="text-align:center">${r.trend}</td>
+      <td><span class="pill ${statusClass}">${r.status}</span></td>
+    </tr>`;
+  });
+}
+
+/* ─── RETENTION data ────────────────────────────────────── */
+const RET_DATA = {
+  // retention curves per programme per intake [Start, Sem1end, Sem2end, Year-end, Graduation]
+  curves: {
+    ism: {
+      2021:[100,95.1,91.8,89.4,87.2], 2022:[100,95.4,92.0,89.8,87.7],
+      2023:[100,95.6,92.2,90.1,88.0], 2024:[100,95.8,92.4,90.5,88.1]
+    },
+    cda: {
+      2021:[100,93.0,88.5,84.8,81.5], 2022:[100,93.2,88.8,85.1,82.0],
+      2023:[100,93.5,89.1,85.5,82.4], 2024:[100,93.8,89.6,85.9,82.7]
+    },
+    bme: {
+      2021:[100,95.8,92.9,90.2,88.9], 2022:[100,95.9,93.0,90.4,89.1],
+      2023:[100,96.0,93.2,90.7,89.3], 2024:[100,96.2,93.5,91.0,89.6]
+    },
+  },
+  // metrics per programme per intake
+  metrics: {
+    all:  { 2021:{ret:'86.9%',prog:'78.4%',risk:38,with:46}, 2022:{ret:'87.4%',prog:'79.2%',risk:36,with:44}, 2023:{ret:'87.9%',prog:'79.7%',risk:35,with:43}, 2024:{ret:'88.6%',prog:'80.1%',risk:34,with:41} },
+    ism:  { 2021:{ret:'87.2%',prog:'79.8%',risk:14,with:16}, 2022:{ret:'87.7%',prog:'80.2%',risk:13,with:15}, 2023:{ret:'88.0%',prog:'80.8%',risk:12,with:14}, 2024:{ret:'88.1%',prog:'81.1%',risk:13,with:13} },
+    cda:  { 2021:{ret:'81.5%',prog:'75.0%',risk:12,with:15}, 2022:{ret:'82.0%',prog:'75.5%',risk:11,with:14}, 2023:{ret:'82.4%',prog:'76.0%',risk:11,with:13}, 2024:{ret:'82.7%',prog:'76.3%',risk:11,with:12} },
+    bme:  { 2021:{ret:'88.9%',prog:'81.5%',risk:9, with:8},  2022:{ret:'89.1%',prog:'81.8%',risk:8, with:8},  2023:{ret:'89.3%',prog:'82.0%',risk:8, with:7},  2024:{ret:'89.6%',prog:'82.3%',risk:7, with:7}  },
+  },
+  // withdrawal reasons (slight variation per intake for realism)
+  withdraw: {
+    2021:[35,25,18,12,7,3], 2022:[34,26,17,13,7,3],
+    2023:[33,27,17,13,7,3], 2024:[32,28,16,13,8,3]
+  },
+  // early warning alerts per programme
+  alerts: {
+    all:[
+      {cls:'red',   title:'13 students — MSc ISM — below 40% pass mark in 2+ modules (MS806, MS805)',     body:'Persistent underperformance in Business Applications Programming and Database Systems. Recommend academic support referral via J.E. Cairnes Student Support Officer.'},
+      {cls:'amber', title:'11 students — MSc CS (Data Analytics) — attendance below 60% threshold',       body:'Attendance flag triggered for 2 consecutive weeks. Monitor for withdrawal risk; programme coordinator notified.'},
+      {cls:'amber', title:'10 students — MSc Biomedical Eng. — late submission pattern detected (3+ consecutive)', body:'Late submission flag active. Pastoral check-in recommended before Semester 2 exams.'},
+      {cls:'green', title:'MSc Public Policy cohort — retention above 96% — no active risk flags',        body:'Performing above university programme average across all monitored indicators this semester.'},
+    ],
+    ism:[
+      {cls:'red',   title:'13 students — below 40% pass mark in 2+ modules (MS806, MS805)',               body:'Persistent underperformance in Business Applications Programming and Database Systems. Recommend academic support referral via J.E. Cairnes Student Support Officer.'},
+      {cls:'amber', title:'6 students — attendance below 60% threshold for 2 consecutive weeks',          body:'Programme coordinator notified. Attendance checks scheduled for Week 9.'},
+    ],
+    cda:[
+      {cls:'amber', title:'11 students — attendance below 60% threshold',                                 body:'Attendance flag triggered for 2 consecutive weeks. Monitor for withdrawal risk; programme coordinator notified.'},
+      {cls:'amber', title:'7 students — late submission pattern detected (3+ consecutive)',                body:'Late submission flag active. Check-in with personal tutors recommended.'},
+    ],
+    bme:[
+      {cls:'amber', title:'10 students — late submission pattern detected (3+ consecutive)',               body:'Late submission flag active. Pastoral check-in recommended before Semester 2 exams.'},
+      {cls:'green', title:'BME cohort — retention above 89% — no critical risk flags',                    body:'Performing above university MSc average across attendance and grade indicators this semester.'},
+    ],
+  }
+};
+
+function updateRetention() {
+  const prog   = document.getElementById('retProg').value;
+  const intake = parseInt(document.getElementById('retIntake').value);
+  const m = RET_DATA.metrics[prog]?.[intake] || RET_DATA.metrics['all'][2024];
+
+  // Metrics
+  document.getElementById('retMetric1').textContent = m.ret;
+  document.getElementById('retMetric2').textContent = m.prog;
+  document.getElementById('retMetric3').textContent = m.risk;
+  document.getElementById('retMetric4').textContent = m.with;
+
+  // Retention curves — show selected progs
+  const progs = prog==='all' ? ['ism','cda','bme'] : [prog];
+  const colors = {ism:'#1d4ed8',cda:'#0891b2',bme:'#16a34a'};
+  const names  = {ism:'MSc ISM',cda:'MSc CS (Data Analytics)',bme:'MSc Biomedical Eng.'};
+
+  // Legend
+  document.getElementById('retLegend').innerHTML = progs.map(p=>
+    `<div class="legend-item"><div class="legend-dot" style="background:${colors[p]};border-radius:2px;width:8px;height:8px;flex-shrink:0"></div>${names[p]}</div>`
+  ).join('');
+
+  document.getElementById('retCurveSub').textContent =
+    `Intake ${intake} — % of cohort remaining at each checkpoint`;
+
+  mkChart('c4','line',{
+    labels:['Start','Sem 1 end','Sem 2 end','Year-end','Graduation'],
+    datasets: progs.map(p=>({
+      label: names[p],
+      data:  RET_DATA.curves[p][intake],
+      borderColor: colors[p],
+      tension:.3, pointRadius:4, fill:false
+    }))
+  },{
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:{color:gridColor},ticks:{font:{family:font,size:11},color:tickColor}},
+      y:{min:76,max:104,grid:{color:gridColor},
+         ticks:{callback:v=>v+'%',font:{family:font,size:11},color:tickColor}}
+    }
+  });
+
+  // Withdrawal donut
+  document.getElementById('withdrawTitle').textContent = `Withdrawal reasons — intake ${intake}`;
+  mkChart('c5','doughnut',{
+    labels:['Academic difficulty','Personal reasons','Financial','Transferred','Health','Other'],
+    datasets:[{data:RET_DATA.withdraw[intake],
+      backgroundColor:['#dc2626','#d97706','#0891b2','#16a34a','#7c3aed','#9e9c94'],borderWidth:0}]
+  },{
+    plugins:{legend:{position:'bottom',labels:{font:{family:font,size:11},color:'#6b6960',padding:8,boxWidth:10}}}
+  });
+
+  // Early warning alerts
+  const alertsData = RET_DATA.alerts[prog] || RET_DATA.alerts['all'];
+  document.getElementById('ewTitle').textContent =
+    `Early warning flags — ${intake} cohort (AY 2024–25)`;
+  document.getElementById('ewAlerts').innerHTML = alertsData.map(a=>
+    `<div class="alert-item ${a.cls}"><div><div class="alert-title">${a.title}</div><div class="alert-body">${a.body}</div></div></div>`
+  ).join('');
+}
+
+/* ─── RESOURCE data ─────────────────────────────────────── */
+const RES_DATA = {
+  metrics: {
+    all:{ s1:{hrs:'4,640',util:'74%',ratio:'1:19',sla:'92%'}, s2:{hrs:'4,210',util:'71%',ratio:'1:19',sla:'94%'}, fy:{hrs:'8,850',util:'73%',ratio:'1:19',sla:'93%'} },
+    bpl:{ s1:{hrs:'1,120',util:'72%',ratio:'1:25',sla:'90%'}, s2:{hrs:'1,020',util:'68%',ratio:'1:25',sla:'91%'}, fy:{hrs:'2,140',util:'70%',ratio:'1:25',sla:'90%'} },
+    cse:{ s1:{hrs:'1,860',util:'80%',ratio:'1:19',sla:'94%'}, s2:{hrs:'1,680',util:'77%',ratio:'1:19',sla:'95%'}, fy:{hrs:'3,540',util:'79%',ratio:'1:19',sla:'95%'} },
+    mnh:{ s1:{hrs:'1,240',util:'77%',ratio:'1:19',sla:'93%'}, s2:{hrs:'1,130',util:'74%',ratio:'1:19',sla:'93%'}, fy:{hrs:'2,370',util:'76%',ratio:'1:19',sla:'93%'} },
+    asc:{ s1:{hrs:'  420',util:'61%',ratio:'1:19',sla:'89%'}, s2:{hrs:'  380',util:'57%',ratio:'1:19',sla:'88%'}, fy:{hrs:'  800',util:'59%',ratio:'1:19',sla:'88%'} },
+  },
+  // Room utilisation per college per semester [Cairnes, Alice Perry, Quadrangle, Áras Moyola, IT Bldg, Hardiman Lib]
+  rooms: {
+    all:{ s1:[76,71,65,80,84,52], s2:[72,68,60,75,80,48], fy:[74,70,63,78,82,50] },
+    bpl:{ s1:[76,0,65,0,0,52],   s2:[72,0,60,0,0,48],    fy:[74,0,63,0,0,50] },
+    cse:{ s1:[0,71,65,80,84,0],  s2:[0,68,60,75,80,0],   fy:[0,70,63,78,82,0] },
+    mnh:{ s1:[0,71,0,80,84,52],  s2:[0,68,0,75,80,48],   fy:[0,70,0,78,82,50] },
+    asc:{ s1:[76,0,65,0,0,52],   s2:[72,0,60,0,0,48],    fy:[74,0,63,0,0,50] },
+  },
+  // Staff workload histogram per college [<200h, 200-299, 300-399, 400-499, 500+]
+  workload: {
+    all:{ s1:[3,11,24,19,6], s2:[4,12,22,18,7], fy:[2,10,26,21,8] },
+    bpl:{ s1:[1,3,8,6,2],   s2:[1,4,7,5,2],    fy:[1,2,9,7,2] },
+    cse:{ s1:[1,4,9,8,2],   s2:[2,5,8,7,3],    fy:[1,4,10,9,3] },
+    mnh:{ s1:[1,3,5,4,1],   s2:[1,2,5,4,1],    fy:[0,3,6,5,2] },
+    asc:{ s1:[0,1,2,1,1],   s2:[0,1,2,2,1],    fy:[0,1,1,0,1] },
+  },
+  // Table rows per college
+  tableRows: {
+    all:[
+      {name:'J.E. Cairnes School of Business & Economics', fte:48,  students:1186, ratio:'1:25', util:72, budget:66, statusCls:'pill-amber', status:'Monitor'},
+      {name:'College of Science & Engineering',            fte:124, students:2341, ratio:'1:19', util:80, budget:73, statusCls:'pill-green', status:'On track'},
+      {name:'College of Medicine, Nursing & Health Sciences', fte:98, students:1874,ratio:'1:19', util:77, budget:71, statusCls:'pill-green', status:'On track'},
+      {name:'College of Arts, Social Sciences & Celtic Studies', fte:86, students:1614,ratio:'1:19', util:61, budget:54, statusCls:'pill-red',  status:'Underused'},
+    ],
+    bpl:[{name:'J.E. Cairnes School of Business & Economics', fte:48, students:1186,ratio:'1:25',util:72,budget:66,statusCls:'pill-amber',status:'Monitor'}],
+    cse:[{name:'College of Science & Engineering',            fte:124,students:2341,ratio:'1:19',util:80,budget:73,statusCls:'pill-green',status:'On track'}],
+    mnh:[{name:'College of Medicine, Nursing & Health Sciences',fte:98,students:1874,ratio:'1:19',util:77,budget:71,statusCls:'pill-green',status:'On track'}],
+    asc:[{name:'College of Arts, Social Sciences & Celtic Studies',fte:86,students:1614,ratio:'1:19',util:61,budget:54,statusCls:'pill-red',status:'Underused'}],
+  }
+};
+
+function updateResource() {
+  const college = document.getElementById('resCollege').value;
+  const sem     = document.getElementById('resSem').value;
+  const m = RES_DATA.metrics[college]?.[sem] || RES_DATA.metrics['all']['s1'];
+
+  // Metrics
+  document.getElementById('resMetric1').textContent = m.hrs;
+  document.getElementById('resMetric2').textContent = m.util;
+  document.getElementById('resMetric3').textContent = m.ratio;
+  document.getElementById('resMetric4').textContent = m.sla;
+
+  const semLabel = sem==='s1'?'Sem 1':sem==='s2'?'Sem 2':'Full Year';
+
+  // Room utilisation chart
+  const roomData   = RES_DATA.rooms[college]?.[sem] || RES_DATA.rooms['all']['s1'];
+  const roomLabels = ['Cairnes Bldg','Alice Perry Eng.','Quadrangle','Áras Moyola','IT Bldg','James Hardiman Lib.'];
+  const roomColors = roomData.map(v => v===0?'transparent': v>=80?'#1d4ed8':v>=70?'#16a34a':v>=60?'#d97706':'#dc2626');
+  mkChart('c8','bar',{
+    labels: roomLabels,
+    datasets:[{data:roomData, backgroundColor:roomColors, borderRadius:4}]
+  },{
+    ...noLegend,
+    scales:{
+      x:{grid:{display:false},ticks:{font:{family:font,size:10},color:tickColor}},
+      y:{min:0,max:100,grid:{color:gridColor},
+         ticks:{callback:v=>v+'%',font:{family:font,size:11},color:tickColor}}
+    },
+    plugins:{legend:{display:false},annotation:{}}
+  });
+
+  // Staff workload histogram
+  const wlData = RES_DATA.workload[college]?.[sem] || RES_DATA.workload['all']['s1'];
+  mkChart('c9','bar',{
+    labels:['<200h','200–299h','300–399h','400–499h','500h+'],
+    datasets:[{data:wlData, backgroundColor:'#0891b2', borderRadius:4}]
+  },{
+    ...noLegend,
+    scales:{
+      x:{grid:{display:false},ticks:{font:{family:font,size:11},color:tickColor}},
+      y:{grid:{color:gridColor},ticks:{font:{family:font,size:11},color:tickColor},
+         title:{display:true,text:'No. of staff',font:{family:font,size:10},color:tickColor}}
+    }
+  });
+
+  // Table
+  const rows = RES_DATA.tableRows[college] || RES_DATA.tableRows['all'];
+  const utilColor = v => v>=80?'var(--green)':v>=70?'var(--amber)':'var(--red)';
+  document.getElementById('resTableBody').innerHTML = rows.map(r=>`<tr>
+    <td style="color:var(--text);font-weight:500">${r.name}</td>
+    <td>${r.fte}</td><td>${r.students.toLocaleString()}</td><td>${r.ratio}</td>
+    <td><span style="display:flex;align-items:center;gap:6px">
+      <div class="prog-bar" style="width:70px"><div class="prog-fill" style="width:${r.util}%;background:${utilColor(r.util)}"></div></div>${r.util}%</span></td>
+    <td>${r.budget}%</td>
+    <td><span class="pill ${r.statusCls}">${r.status}</span></td>
+  </tr>`).join('');
+}
+
+/* ─── Init ──────────────────────────────────────────────── */
+window.addEventListener('load', () => {
+  updateEnrolment();
+  updateRetention();
+  updatePerformance();
+  updateResource();
+});
+</script>
+</body>
+</html>
